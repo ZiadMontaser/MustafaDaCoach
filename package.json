@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "node-fetch": "^2.7.0",
+    "venom-bot": "^5.0.21"
+  },
+  "devDependencies": {
+    "@types/node-fetch": "^2.6.11"
+  }
+}
