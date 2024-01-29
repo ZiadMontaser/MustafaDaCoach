@@ -3,10 +3,10 @@ import { Manager, PlayerModel, TransferedPlayer, posKeys } from "./model";
 import {readFileSync, writeFileSync} from 'fs'
 import * as venom from 'venom-bot';
 
-const username = process.env.USER_NAME;
+const username =  process.env.USER_NAME;
 const password = process.env.USER_PASSWORD;
 
-const BROADCAST_MSG = true;
+const BROADCAST_MSG = false;
 
 var client: venom.Whatsapp;
 if (BROADCAST_MSG) {
@@ -45,12 +45,14 @@ async function RequestTokens(){
 
     
 
-    var result = await (await fetch('https://web-api.onlinesoccermanager.com/api/token?' + logInData.join('&'),
+    var responce = await fetch('https://web-api.onlinesoccermanager.com/api/token?' + logInData.join('&'),
         {
             headers: header,
             method: 'POST',
-        })).json();
+        });
+    // console.log(await responce.text());
 
+    var result = await responce.json();
     
     var access_token: string = result["access_token"];
     var refresh_token: string = result["refresh_token"];
@@ -120,7 +122,7 @@ async function Start() {
 
         var newPlayers: PlayerModel[] = JSON.parse(result.split('\r\n')[5]);
         var newHistory: TransferedPlayer[] = history = JSON.parse(result.split('\r\n')[11]);
-        var managers: Manager[] = history = JSON.parse(result.split('\r\n')[17]);
+        var managers: Manager[] = JSON.parse(result.split('\r\n')[17]);
 
         function GetManagerName(teamId: number) {
             var m = managers.find((x) => x.teamId == teamId);
@@ -132,7 +134,10 @@ async function Start() {
             for (let i = 0; i < newPlayers.length; i++) {
                 const element = newPlayers[i];
                 if (oldPlayerList.find((e) => e.player.fullName == element.player.fullName) == undefined) {
-                    broadCast(`${element.player.fullName} : ${posKeys[element.player.specificPosition]} : (${element.player.statAtt} / ${element.player.statDef} / ${element.player.statOvr}) (${(element.price / 1_000_000).toFixed(2)})M \n was added by ${GetManagerName(element.player.teamId)}`);
+                    var manager_name = GetManagerName(element.player.teamId);
+                    // broadCast(`➕${manager_name == "Computer"? "💻" : ""} ${element.player.fullName} (${element.player.age}) : ${posKeys[element.player.specificPosition]} : (${element.player.statAtt} / ${element.player.statDef} / ${element.player.statOvr}) (${(element.price / 1_000_000).toFixed(2)})M \nwas added by ${manager_name}`);
+                    broadCast(`➕${manager_name == "Computer"? "💻" : ""} ${element.player.fullName} (${element.player.age}) : ${posKeys[element.player.specificPosition]} : (${(element.price / 1_000_000).toFixed(2)})M\n   (${element.player.statAtt} / ${element.player.statDef} / ${element.player.statOvr})  \nwas added by ${manager_name}`);
+                    
                 }
             }
 
@@ -140,16 +145,22 @@ async function Start() {
             for (let i = 0; i < history.length; i++) {
                 const element = history[i];
                 if (element.timestamp > lastTimeStamp) {
-                    broadCast(`${element.player.fullName} : ${posKeys[element.player.specificPosition]} : (${element.player.statAtt} / ${element.player.statDef} / ${element.player.statOvr}) (${(element.price / 1_000_000).toFixed(2)})M \n Moved to ${GetManagerName(element.destinationTeam.id)}`)
+                    // element.destinationTeam.
+                    var manager_nameSrc = GetManagerName(element.sourceTeam.id);
+                    var manager_nameDist =  GetManagerName(element.destinationTeam.id)
+                    var srcSumbol = manager_nameSrc == "Computer"? "💻" : "🧍🏻‍♂️"
+                    var disSumbol = manager_nameDist == "Computer"? "💻" : "🧍🏻‍♂️"
+                    broadCast(`${srcSumbol} => ${disSumbol} ${element.player.fullName} (${element.player.age}) : ${posKeys[element.player.specificPosition]} : (${(element.price / 1_000_000).toFixed(2)})M \nMoved from *${element.sourceTeam.name}* to *${element.destinationTeam.name}*`)
                 }
             }
 
             //Removed players but not transfered
             for (let i = 0; i < oldPlayerList.length; i++) {
                 const element = oldPlayerList[i];
-                if (newPlayers.find((e) => e.player.fullName == element.player.fullName) == undefined) {
+                if (newPlayers.find((e) => e.player.fullName == element.player.fullName) == undefined) { //Removed but not unkown by who?
                     if (history.find((t) => t.timestamp > lastTimeStamp && t.player.fullName == element.player.fullName) == undefined) {
-                        broadCast(`${element.player.fullName} : ${posKeys[element.player.specificPosition]} : (${element.player.statAtt} / ${element.player.statDef} / ${element.player.statOvr}) (${(element.price / 1_000_000).toFixed(2)})M \n was removed by ${GetManagerName(element.player.teamId)}`);
+                        var manager_name = GetManagerName(element.player.teamId);
+                        broadCast(`➖${manager_name == "Computer"? "💻" : ""} ${element.player.fullName} (${element.player.age}) : ${posKeys[element.player.specificPosition]} : (${(element.price / 1_000_000).toFixed(2)})M\n   (${element.player.statAtt} / ${element.player.statDef} / ${element.player.statOvr})  \nwas removed by ${manager_name}`);
                     }
                 }
             }
@@ -157,6 +168,7 @@ async function Start() {
 
         oldPlayerList = newPlayers;
         lastTimeStamp = history.length > 0 ? history[0].timestamp : Number.MAX_VALUE;
+
         }catch{
             console.log("Error: Requesting new token")
             access_token = await RequestTokens();
