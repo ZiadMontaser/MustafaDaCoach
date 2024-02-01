@@ -2,26 +2,52 @@ import fetch from "node-fetch";
 import { Manager, PlayerModel, TransferedPlayer, posKeys } from "./model";
 import {readFileSync, writeFileSync} from 'fs'
 import * as venom from 'venom-bot';
+import { Client, Events, GatewayIntentBits, Message, REST, Routes, TextChannel } from 'discord.js';
+const { token, username, password } = require('../config.json');
 
-const username =  process.env.USER_NAME;
-const password = process.env.USER_PASSWORD;
+const BROADCAST_MSG = true;
+const Discord = true;
 
-const BROADCAST_MSG = false;
+var disClient: Client<boolean>;
+var wbaClient: venom.Whatsapp;
 
-var client: venom.Whatsapp;
-if (BROADCAST_MSG) {
-    venom.create({ session: "dacoach" }).then((cl) => {
-        client = cl;
-        Start();
-        console.log("Mustafa da coach started listening for deals...");
-    })
-} else
+
+if (BROADCAST_MSG)
+
+    if (Discord) {
+
+        disClient = new Client({ intents: [GatewayIntentBits.MessageContent, GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.GuildMembers]});
+        disClient.once(Events.ClientReady, async readyClient =>  {
+            console.log(`Ready! Logged in as ${readyClient.user.tag}`);
+            Start();
+        });
+        disClient.login(token);
+
+    } else {
+
+        venom.create({ session: "dacoach" }).then((cl) => {
+            wbaClient = cl;
+            Start();
+            console.log("Mustafa da coach started listening for deals...");
+        })
+
+    }
+else
     Start();
 
-function broadCast(msg: string) {
-    if(BROADCAST_MSG)
-        client.sendText('120363226634886216@g.us', msg);
+async function broadCast(msg: string) {
     console.log(msg);
+    if (!BROADCAST_MSG) return;
+
+    if (Discord) {
+        const channel :  TextChannel= ( await disClient.channels.fetch('1202402936399994972')) as  TextChannel;
+        channel.send(msg);
+
+    } else {
+        if (BROADCAST_MSG)
+            wbaClient.sendText('120363226634886216@g.us', msg);
+    }
+
 }
 
 function creatGuild(): string { return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (n) { var t = Math.random() * 16 | 0, i = n === "x" ? t : t & 3 | 8; return i.toString(16) }) }
